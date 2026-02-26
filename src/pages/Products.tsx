@@ -15,6 +15,10 @@ import {
   Upload,
   Download,
   Eye,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { productsService, Product } from '../lib/api/products.service';
 import { categoriesService, Category } from '../lib/api/categories.service';
@@ -39,6 +43,11 @@ export const Products: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // État pour la pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [paginatedProducts, setPaginatedProducts] = useState<Product[]>([]);
+
   // Formulaire pour créer/modifier un produit
   const [formData, setFormData] = useState({
     name: '',
@@ -50,7 +59,7 @@ export const Products: React.FC = () => {
     minStockLevel: '',
     unit: '',
     trackStock: true,
-    currentStock: '', // ✅ AJOUTÉ : Stock initial
+    currentStock: '',
   });
 
   const isAdminOrSupervisor = user?.role === 'admin' || user?.role === 'supervisor';
@@ -62,6 +71,11 @@ export const Products: React.FC = () => {
   useEffect(() => {
     filterProducts();
   }, [products, searchTerm, selectedCategory]);
+
+  // Effet pour mettre à jour la pagination quand les filtres changent
+  useEffect(() => {
+    paginateProducts();
+  }, [filteredProducts, currentPage, itemsPerPage]);
 
   const loadData = async () => {
     setLoading(true);
@@ -103,6 +117,96 @@ export const Products: React.FC = () => {
     }
 
     setFilteredProducts(filtered);
+    setCurrentPage(1); // Reset à la première page quand on filtre
+  };
+
+  // Fonction de pagination
+  const paginateProducts = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    setPaginatedProducts(filteredProducts.slice(startIndex, endIndex));
+  };
+
+  // Changer de page
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Aller à la première page
+  const goToFirstPage = () => {
+    setCurrentPage(1);
+  };
+
+  // Aller à la dernière page
+  const goToLastPage = () => {
+    setCurrentPage(totalPages);
+  };
+
+  // Page précédente
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  // Page suivante
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Changer le nombre d'éléments par page
+  const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
+  // Calculs pour la pagination
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  // Générer les numéros de page à afficher
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxPagesToShow = 5; // Nombre maximum de pages à afficher
+    
+    if (totalPages <= maxPagesToShow) {
+      // Afficher toutes les pages si moins que le maximum
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Afficher un sous-ensemble de pages
+      if (currentPage <= 3) {
+        // Début de la pagination
+        for (let i = 1; i <= 4; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push(-1); // Séparateur (...)
+        pageNumbers.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Fin de la pagination
+        pageNumbers.push(1);
+        pageNumbers.push(-1); // Séparateur (...)
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pageNumbers.push(i);
+        }
+      } else {
+        // Milieu de la pagination
+        pageNumbers.push(1);
+        pageNumbers.push(-1); // Séparateur (...)
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push(-2); // Séparateur (...)
+        pageNumbers.push(totalPages);
+      }
+    }
+    
+    return pageNumbers;
   };
 
   const handleOpenModal = (product?: Product) => {
@@ -119,7 +223,7 @@ export const Products: React.FC = () => {
         minStockLevel: product.minStockLevel?.toString() || '0',
         unit: product.unit || '',
         trackStock: product.trackStock,
-        currentStock: product.currentStock?.toString() || '0', // ✅ AJOUTÉ
+        currentStock: product.currentStock?.toString() || '0',
       });
     } else {
       // Mode création
@@ -134,7 +238,7 @@ export const Products: React.FC = () => {
         minStockLevel: '',
         unit: '',
         trackStock: true,
-        currentStock: '', // ✅ AJOUTÉ
+        currentStock: '',
       });
     }
     setShowModal(true);
@@ -160,7 +264,7 @@ export const Products: React.FC = () => {
         minStockLevel: formData.minStockLevel ? parseInt(formData.minStockLevel) : undefined,
         unit: formData.unit || undefined,
         trackStock: formData.trackStock,
-        currentStock: formData.currentStock ? parseInt(formData.currentStock) : 0, // ✅ AJOUTÉ
+        currentStock: formData.currentStock ? parseInt(formData.currentStock) : 0,
       };
 
       let response;
@@ -252,7 +356,7 @@ export const Products: React.FC = () => {
             minStockLevel: row['Seuil minimum'] ? parseInt(row['Seuil minimum']) : undefined,
             unit: row['Unité'] || undefined,
             trackStock: row['Suivi du stock'] === 'Oui',
-            currentStock: row['Stock actuel'] ? parseInt(row['Stock actuel']) : 0, // ✅ AJOUTÉ
+            currentStock: row['Stock actuel'] ? parseInt(row['Stock actuel']) : 0,
           };
 
           await productsService.create(productData);
@@ -460,7 +564,7 @@ export const Products: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((product) => {
+              {paginatedProducts.map((product) => {
                 const category = categories.find(c => c.id === product.categoryId);
                 const stockStatus = getStockStatus(product);
                 const stockValue = (product.currentStock || 0) * (product.costPrice || 0);
@@ -598,6 +702,107 @@ export const Products: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Contrôles de pagination */}
+        {filteredProducts.length > 0 && (
+          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              {/* Informations de pagination */}
+              <div className="text-sm text-gray-700">
+                Affichage de <span className="font-medium">{startItem}</span> à{' '}
+                <span className="font-medium">{endItem}</span> sur{' '}
+                <span className="font-medium">{totalItems}</span> produits
+              </div>
+
+              {/* Sélecteur d'éléments par page */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Afficher</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={handleItemsPerPageChange}
+                  className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <span className="text-sm text-gray-700">par page</span>
+              </div>
+
+              {/* Boutons de navigation */}
+              <div className="flex items-center gap-1">
+                {/* Première page */}
+                <button
+                  onClick={goToFirstPage}
+                  disabled={currentPage === 1}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Première page"
+                >
+                  <ChevronsLeft className="w-5 h-5" />
+                </button>
+
+                {/* Page précédente */}
+                <button
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Page précédente"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+
+                {/* Numéros de page */}
+                <div className="flex items-center gap-1">
+                  {getPageNumbers().map((pageNum, index) => {
+                    if (pageNum === -1 || pageNum === -2) {
+                      // Séparateur
+                      return (
+                        <span key={`ellipsis-${index}`} className="px-3 py-2 text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => goToPage(pageNum)}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Page suivante */}
+                <button
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Page suivante"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+
+                {/* Dernière page */}
+                <button
+                  onClick={goToLastPage}
+                  disabled={currentPage === totalPages}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Dernière page"
+                >
+                  <ChevronsRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal de création/édition */}
@@ -729,23 +934,23 @@ export const Products: React.FC = () => {
                   />
                 </div>
 
-                {/* Stock initial - ✅ NOUVEAU CHAMP */}
-            <div className="md:col-span-2">
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Stock initial
-  </label>
-  <input
-    type="number"
-    value={formData.currentStock}
-    onChange={(e) => setFormData({ ...formData, currentStock: e.target.value })}
-    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-    placeholder="0"
-    disabled={!formData.trackStock}
-  />
-  <p className="text-xs text-gray-500 mt-1">
-    Quantité en stock au moment de la création
-  </p>
-</div>
+                {/* Stock initial */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Stock initial
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.currentStock}
+                    onChange={(e) => setFormData({ ...formData, currentStock: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0"
+                    disabled={!formData.trackStock}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quantité en stock au moment de la création
+                  </p>
+                </div>
 
                 {/* Description */}
                 <div className="md:col-span-2">

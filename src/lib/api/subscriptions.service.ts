@@ -1,4 +1,4 @@
-// src/lib/api/subscriptions.service.ts
+// src/lib/api/subscriptions.service.ts pour
 import { apiClient } from './config';
 
 export interface SubscriptionPlan {
